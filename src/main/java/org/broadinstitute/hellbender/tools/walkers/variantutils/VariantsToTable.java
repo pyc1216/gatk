@@ -485,7 +485,7 @@ public final class VariantsToTable extends VariantWalker {
      */
     private static void addAlleleSpecificFieldValue(final Object val, final List<List<String>> result, final VCFHeaderLineCount alleleCount) {
         if (val instanceof List && alleleCount.equals(VCFHeaderLineCount.R)) {
-            List myList = (List) val;
+            final List<?> myList = (List<?>) val;
             addFieldValue(new ArrayList<>(myList.subList(1, myList.size())), result);
         }
         else {
