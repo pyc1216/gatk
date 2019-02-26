@@ -59,6 +59,9 @@ ENV PATH $CONDA_PATH/envs/gatk/bin:$CONDA_PATH/bin:$PATH
 RUN conda env create -n gatk -f /gatk/gatkcondaenv.yml && \
     echo "source activate gatk" >> /gatk/gatkenv.rc && \
     echo "source /gatk/gatk-completion.sh" >> /gatk/gatkenv.rc && \
+    echo 'export KMP_AFFINITY="granularity=thread,compact,1,0"' >> /gatk/gatkenv.rc && \
+    echo 'export KMP_BLOCKTIME="1"' >> /gatk/gatkenv.rc && \
+    echo 'export OMP_NUM_THREADS="$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')"' >> /gatk/gatkenv.rc && \
     conda clean -y -all && \
     rm -rf /root/.cache/pip
 
