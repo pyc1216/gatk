@@ -104,6 +104,7 @@ public class CNNScoreVariantsIntegrationTest extends CommandLineProgramTest {
 
     @Test(groups = {"python"})
     public void testInferenceWithIntervals() throws IOException {
+        Utils.resetRandomGenerator();
         final boolean newExpectations = false;
         final ArgumentsBuilder argsBuilder = new ArgumentsBuilder();
         argsBuilder.addArgument(StandardArgumentDefinitions.VARIANT_LONG_NAME, bigInputVCF)
