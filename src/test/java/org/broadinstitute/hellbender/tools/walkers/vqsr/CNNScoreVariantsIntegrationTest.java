@@ -211,6 +211,8 @@ public class CNNScoreVariantsIntegrationTest extends CommandLineProgramTest {
                 .addArgument(StandardArgumentDefinitions.REFERENCE_LONG_NAME, b37_reference_20_21)
                 .addArgument("architecture", architecture2D)
                 .addArgument("tensor-type", tt.name())
+                .addArgument("inference-batch-size", "8")
+                .addArgument("transfer-batch-size", "8")
                 .addArgument(StandardArgumentDefinitions.ADD_OUTPUT_VCF_COMMANDLINE, "false");
 
         if (newExpectations) {
