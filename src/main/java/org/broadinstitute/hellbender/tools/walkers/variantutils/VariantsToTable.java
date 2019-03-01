@@ -116,7 +116,8 @@ import static org.broadinstitute.hellbender.utils.Utils.split;
 )
 @DocumentedFeature
 public final class VariantsToTable extends VariantWalker {
-    private static final VariantsToTable instance = new VariantsToTable();
+    public final static String SPLIT_MULTI_ALLELIC_LONG_NAME = "split-multi-allelic";
+    public final static String SPLIT_MULTI_ALLELIC_SHORT_NAME = "SMA";
 
     static final Logger logger = LogManager.getLogger(VariantsToTable.class);
 
@@ -147,7 +148,7 @@ public final class VariantsToTable extends VariantWalker {
     @Argument(shortName="ASF", doc="The name of an allele-specific INFO field to be split if present", optional=true)
     private List<String> asFieldsToTake = new ArrayList<>();
 
-    @Argument(shortName="ASGF", doc="The name of an allele-specific INFO field to be split if present", optional=true)
+    @Argument(shortName="ASGF", doc="The name of an allele-specific FORMAT field to be split if present", optional=true)
     private List<String> asGenotypeFieldsToTake = new ArrayList<>();
 
     /**
@@ -165,8 +166,8 @@ public final class VariantsToTable extends VariantWalker {
      * (e.g. allele depth) separated by commas. This may cause difficulty when the table is loaded by an R script, for example.
      * Use this flag to write multi-allelic records on separate lines of output. Fields that are not allele-specific will be duplicated.
      */
-    @Argument(fullName="split-multi-allelic",
-            shortName="SMA",
+    @Argument(fullName=SPLIT_MULTI_ALLELIC_LONG_NAME,
+            shortName=SPLIT_MULTI_ALLELIC_SHORT_NAME,
             doc="Split multi-allelic records into multiple lines", optional=true)
     protected boolean splitMultiAllelic = false;
 
@@ -228,34 +229,22 @@ public final class VariantsToTable extends VariantWalker {
             }
         }
 
-        if (asGenotypeFieldsToTake.isEmpty() && asFieldsToTake.isEmpty() && (!splitMultiAllelic)) {
-            logger.warn("Allele-specific fields will only be split if splitting multi-allelic variants is specified (`--split-multi-allelics` or `-SMA`");
+        if (asGenotypeFieldsToTake.isEmpty() && asFieldsToTake.isEmpty() && !splitMultiAllelic) {
+            logger.warn("Allele-specific fields will only be split if splitting multi-allelic variants is specified (`--" + SPLIT_MULTI_ALLELIC_LONG_NAME + "` or `-" + SPLIT_MULTI_ALLELIC_SHORT_NAME + "`");
         }
 
         // print out the header
         if ( moltenizeOutput ) {
             outputStream.println("RecordID\tSample\tVariable\tValue");
         } else {
-            final String baseHeader = Utils.join("\t", fieldsToTake);
-            final String asBaseHeader = Utils.join("\t", asFieldsToTake);
-            final String genotypeHeader = createGenotypeHeader();
-            String line = "";
-            if (!baseHeader.isEmpty()) {
-                line += baseHeader;
-            }
-            if (!line.isEmpty() && !asBaseHeader.isEmpty()) {
-                line += "\t";
-            }
-            if (!asBaseHeader.isEmpty()) {
-                line += asBaseHeader;
-            }
-            if (!line.isEmpty() && !genotypeHeader.isEmpty()) {
-                line += "\t";
-            }
-            if (!genotypeHeader.isEmpty()) {
-                line += genotypeHeader;
-            }
-            outputStream.println(line);
+            final List<String> fields = new ArrayList<>();
+            fields.addAll(fieldsToTake);
+            fields.addAll(asFieldsToTake);
+            final String header = new StringBuilder(Utils.join("\t", fields))
+                    .append("\t")
+                    .append(createGenotypeHeader())
+                    .toString();
+            outputStream.println(header);
         }
     }
 
@@ -286,21 +275,12 @@ public final class VariantsToTable extends VariantWalker {
 
     private String createGenotypeHeader() {
         boolean firstEntry = true;
+        final List<String> allGenotypeFieldsToTake = new ArrayList<>(genotypeFieldsToTake);
+        allGenotypeFieldsToTake.addAll(asGenotypeFieldsToTake);
 
         final StringBuilder sb = new StringBuilder();
         for ( final String sample : samples ) {
-            for ( final String gf : genotypeFieldsToTake ) {
-                if ( firstEntry ) {
-                    firstEntry = false;
-                } else {
-                    sb.append("\t");
-                }
-                // spaces in sample names are legal but wreak havoc in R data frames
-                sb.append(sample.replace(" ","_"));
-                sb.append('.');
-                sb.append(gf);
-            }
-            for ( final String gf : asGenotypeFieldsToTake ) {
+            for ( final String gf : allGenotypeFieldsToTake ) {
                 if ( firstEntry ) {
                     firstEntry = false;
                 } else {
@@ -338,18 +318,8 @@ public final class VariantsToTable extends VariantWalker {
         final int numRecordsToProduce = splitMultiAllelic ? vc.getAlternateAlleles().size() : 1;
         final List<List<String>> records = new ArrayList<>(numRecordsToProduce);
 
-        final int numFields;
-        final boolean hasGFields = genotypeFieldsToTake != null && !genotypeFieldsToTake.isEmpty();
-        final boolean hasASGFields = asGenotypeFieldsToTake != null && !asGenotypeFieldsToTake.isEmpty();
-        final boolean addGenotypeFields = hasGFields || hasASGFields;
-        if ( addGenotypeFields ) {
-            numFields = fieldsToTake.size() + genotypeFieldsToTake.size() * samples.size();
-        } else {
-            numFields = fieldsToTake.size();
-        }
-
         for ( int i = 0; i < numRecordsToProduce; i++ ) {
-            records.add(new ArrayList<>(numFields));
+            records.add(new ArrayList<>());
         }
 
         for ( final String field : fieldsToTake ) {
@@ -388,7 +358,7 @@ public final class VariantsToTable extends VariantWalker {
             }
         }
 
-        if ( addGenotypeFields ) {
+        if ( !genotypeFieldsToTake.isEmpty() || !asGenotypeFieldsToTake.isEmpty() ) {
             addGenotypeFieldsToRecords(vc, records, errorIfMissingData);
         }
 
@@ -582,9 +552,5 @@ public final class VariantsToTable extends VariantWalker {
         }
 
         return vc.getAlternateAlleles();
-    }
-
-    protected static VariantsToTable getInstance() {
-        return instance;
     }
 }
