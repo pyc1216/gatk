@@ -4,7 +4,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import org.broadinstitute.hellbender.CommandLineProgramTest;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.testutils.ArgumentsBuilder;
-import org.broadinstitute.hellbender.testutils.IntegrationTestSpec;
 import org.broadinstitute.hellbender.testutils.VariantContextTestUtils;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
@@ -12,11 +11,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -33,27 +28,12 @@ public class CNNScoreVariantsIntegrationTest extends CommandLineProgramTest {
     private static final String inputBAM = largeFileTestDir + "VQSR/g94982_contig_20_start_bamout.bam";
     private static final String inputIntervals = largeFileTestDir + "VQSR/contig20_conf_1m_10m.interval_list";
     private static final double EPSILON = 0.01;
-    /**
-     * Run the tool on a small test VCF.
-     */
-    @Test(groups = {"python"})
-    public void testAllDefaultArgs() throws IOException {
-        final ArgumentsBuilder argsBuilder = new ArgumentsBuilder();
-        argsBuilder.addArgument(StandardArgumentDefinitions.VARIANT_LONG_NAME, inputVCF)
-                .addArgument(StandardArgumentDefinitions.OUTPUT_LONG_NAME, "%s")
-                .addArgument(StandardArgumentDefinitions.REFERENCE_LONG_NAME, b37_reference_20_21)
-                .addArgument(StandardArgumentDefinitions.ADD_OUTPUT_VCF_COMMANDLINE, "false");
-
-        final IntegrationTestSpec spec = new IntegrationTestSpec(argsBuilder.toString(),
-                Arrays.asList(largeFileTestDir + "VQSR/expected/cnn_1d_chr20_subset_expected.vcf"));
-        spec.executeTest("testInference", this);
-    }
 
     /**
      * Run the tool on a small test VCF.
      */
     @Test(groups = {"python"})
-    public void testAllDefaultArgsNew() {
+    public void testAllDefaultArgs() {
         final ArgumentsBuilder argsBuilder = new ArgumentsBuilder();
         final File tempVcf = createTempFile("tester", ".vcf");
         final File expectedVcf = new File(largeFileTestDir + "VQSR/expected/cnn_1d_chr20_subset_expected.vcf");
