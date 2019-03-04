@@ -1,5 +1,6 @@
 package org.broadinstitute.hellbender.tools;
 
+import com.google.common.annotations.VisibleForTesting;
 import htsjdk.samtools.*;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.BetaFeature;
@@ -30,7 +31,7 @@ import java.util.stream.Stream;
         programGroup = CoverageAnalysisProgramGroup.class
 )
 @BetaFeature
-public class AnalyzeMITESeq extends GATKTool {
+public class AnalyzeSaturationMutagenesis extends GATKTool {
     @Argument(doc = "minimum quality score for analyzed portion of read", fullName = "min-q")
     private static int minQ = 30;
 
@@ -471,7 +472,7 @@ public class AnalyzeMITESeq extends GATKTool {
     }
 
     // describes an interval on some sequence as a pair of offsets (0-based, half-open).
-    private final static class Interval {
+    @VisibleForTesting final static class Interval {
         private final int start;
         private final int end;
 
@@ -488,7 +489,7 @@ public class AnalyzeMITESeq extends GATKTool {
     }
 
     // a description of a single-base deviation from reference
-    private static final class SNV implements Comparable<SNV> {
+    @VisibleForTesting static final class SNV implements Comparable<SNV> {
         private final int refIndex;
         private final byte refCall;
         private final byte variantCall;
@@ -538,7 +539,7 @@ public class AnalyzeMITESeq extends GATKTool {
 
     // a count of molecules that start and stop at particular places on the reference
     // this allows us to calculate the number of molecules that span any given interval
-    private static final class IntervalCounter {
+    @VisibleForTesting static final class IntervalCounter {
         // triangular matrix indexed first by starting position on reference, and second by the size of the interval
         final long[][] counts;
 
@@ -568,13 +569,13 @@ public class AnalyzeMITESeq extends GATKTool {
     // an array of SNVs that serves as a key (comparison, equality, and hashCode depend only on this part)
     // and a count of the number of observations of those SNVs, plus the total reference coverage over all observations
     // implements a Map.Entry as a single object to conserve memory
-    private static final class SNVCollectionCount
+    @VisibleForTesting static final class SNVCollectionCount
             implements Map.Entry<SNVCollectionCount, Long>, Comparable<SNVCollectionCount> {
         private static final SNV[] emptyArray = new SNV[0];
         private final SNV[] snvs;
-        private long count; // number of observations of this set of SNVs
-        private int totalRefCoverage; // the sum of the reference coverage over all observations
-        private final int hash;
+        private long count; // number of observations of this set of SNVs -- not part of key
+        private int totalRefCoverage; // the sum of the reference coverage over all observations -- not part of key
+        private final int hash; // depends only on the array of SNVs
 
         public SNVCollectionCount( final List<SNV> snvs, final int refCoverage ) {
             this.snvs = snvs.toArray(emptyArray);
