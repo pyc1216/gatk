@@ -5,11 +5,15 @@ import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.Interval
 import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.IntervalCounter;
 import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.SNV;
 import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.SNVCollectionCount;
+import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.CodonTracker;
+import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.CodonVariation;
+import org.broadinstitute.hellbender.tools.AnalyzeSaturationMutagenesis.CodonVariationType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class AnalyzeSaturationMutagenesisUnitTest extends GATKBaseTest {
@@ -95,5 +99,90 @@ public class AnalyzeSaturationMutagenesisUnitTest extends GATKBaseTest {
         Assert.assertNotEquals(cc1, cc3);
         Assert.assertTrue(cc1.compareTo(cc3) < 0);
         Assert.assertTrue(cc3.compareTo(cc1) > 0);
+    }
+
+    @Test
+    public void testCodonVariation() {
+        Assert.assertTrue(new CodonVariation(0,0, CodonVariationType.DELETION).isDeletion());
+        Assert.assertTrue(new CodonVariation(0,0, CodonVariationType.FRAMESHIFT).isFrameshift());
+        Assert.assertTrue(new CodonVariation(0,0, CodonVariationType.INSERTION).isInsertion());
+        Assert.assertTrue(new CodonVariation(0,0, CodonVariationType.MODIFICATION).isModification());
+        Assert.assertFalse(new CodonVariation(0,0, CodonVariationType.DELETION).isModification());
+    }
+
+    final static byte CALL_A = (byte)'A';
+    final static byte CALL_C = (byte)'C';
+    final static byte CALL_G = (byte)'G';
+    final static byte CALL_T = (byte)'T';
+    final static byte NO_CALL = (byte)'-';
+    final static byte QUAL_30 = (byte)30;
+
+    final static byte[] refSeq = "ACATGCGTCTAGTACGT".getBytes();
+    final static String orfCoords = "3-6,8-12";
+    final static CodonTracker codonTracker = new CodonTracker(orfCoords, refSeq);
+
+    @Test
+    public void testEncodingModifications() {
+        // no SNVs implies no codon variations
+        Assert.assertTrue(codonTracker.encodeSNVsAsCodons(Collections.emptyList()).isEmpty());
+
+        // changes outside the ORF shouldn't produce codon variations
+        Assert.assertTrue(codonTracker
+                .encodeSNVsAsCodons(Collections.singletonList(new SNV(1, CALL_C, CALL_G, QUAL_30)))
+                .isEmpty());
+        Assert.assertTrue(codonTracker
+                .encodeSNVsAsCodons(Collections.singletonList(new SNV(6, CALL_G, CALL_A, QUAL_30)))
+                .isEmpty());
+        Assert.assertTrue(codonTracker
+                .encodeSNVsAsCodons(Collections.singletonList(new SNV(12, CALL_T, CALL_C, QUAL_30)))
+                .isEmpty());
+
+        // changes to a single codon should produce a single-codon variations
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(new SNV(2, CALL_A, CALL_C, QUAL_30))),
+                Collections.singletonList(new CodonVariation(0, 30, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(new SNV(5, CALL_C, CALL_G, QUAL_30))),
+                Collections.singletonList(new CodonVariation(1, 45, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(new SNV(7, CALL_T, CALL_G, QUAL_30))),
+                Collections.singletonList(new CodonVariation(1, 25, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(new SNV(8, CALL_C, CALL_A, QUAL_30))),
+                Collections.singletonList(new CodonVariation(1, 28, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(new SNV(11, CALL_G, CALL_A, QUAL_30))),
+                Collections.singletonList(new CodonVariation(2, 48, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(5, CALL_C, CALL_G, QUAL_30),
+                        new SNV(7, CALL_T, CALL_G, QUAL_30),
+                        new SNV(8, CALL_C, CALL_A, QUAL_30))),
+                Collections.singletonList(new CodonVariation(1, 40, CodonVariationType.MODIFICATION)));
+
+        // even if the change produces a nonsense codon
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(5, CALL_C, CALL_T, QUAL_30),
+                        new SNV(7, CALL_T, CALL_A, QUAL_30),
+                        new SNV(8, CALL_C, CALL_A, QUAL_30))),
+                Collections.singletonList(new CodonVariation(1, 48, CodonVariationType.MODIFICATION)));
+    }
+
+    @Test
+    public void testEncodingDeletions() {
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(10, CALL_A, NO_CALL, QUAL_30),
+                        new SNV(12, CALL_T, NO_CALL, QUAL_30))),
+                Arrays.asList(
+                        new CodonVariation(2, -1, CodonVariationType.FRAMESHIFT),
+                        new CodonVariation(2, 56, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(5, CALL_C, NO_CALL, QUAL_30),
+                        new SNV(7, CALL_T, NO_CALL, QUAL_30),
+                        new SNV(8, CALL_C, NO_CALL, QUAL_30))),
+                Collections.singletonList(new CodonVariation(1, -1, CodonVariationType.DELETION)));
     }
 }

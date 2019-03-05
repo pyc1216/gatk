@@ -640,14 +640,14 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
         }
     }
 
-    private enum CodonVariationType {
+    @VisibleForTesting enum CodonVariationType {
         FRAMESHIFT,
         INSERTION,
         DELETION,
         MODIFICATION
     }
 
-    private static final class CodonVariation {
+    @VisibleForTesting static final class CodonVariation {
         private final int codonId;
         private final int codonValue;
         private final CodonVariationType variationType;
@@ -665,9 +665,25 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
         public boolean isInsertion() { return variationType == CodonVariationType.INSERTION; }
         public boolean isDeletion() { return variationType == CodonVariationType.DELETION; }
         public boolean isModification() { return variationType == CodonVariationType.MODIFICATION; }
+
+        @Override
+        public boolean equals( final Object obj ) {
+            return obj instanceof CodonVariation && equals((CodonVariation)obj);
+        }
+
+        public boolean equals( final CodonVariation that ) {
+            return this.codonId == that.codonId &&
+                    this.codonValue == that.codonValue &&
+                    this.variationType == that.variationType;
+        }
+
+        @Override
+        public int hashCode() {
+            return 47 * (47 * (47 * codonId + codonValue) + variationType.ordinal());
+        }
     }
 
-    private static final class CodonTracker {
+    @VisibleForTesting static final class CodonTracker {
         private final byte[] refSeq;
         private final List<Interval> exonList;
         private final long[][] codonCounts;
