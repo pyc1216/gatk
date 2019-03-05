@@ -154,6 +154,7 @@ class SampleDenoisingAndCallingPosteriorsWriter:
             self.denoising_model_approx)
 
         # compute approximate denoised copy ratios
+        _logger.info("Sampling and approximating posteriors for denoised copy ratios...")
         denoising_copy_ratios_approx_generator = commons.get_sampling_generator_for_model_approximation(
             model_approx=self.denoising_model_approx, model_var_name='denoised_copy_ratios')
         denoised_copy_ratios_mean, denoised_copy_ratios_variance =\
