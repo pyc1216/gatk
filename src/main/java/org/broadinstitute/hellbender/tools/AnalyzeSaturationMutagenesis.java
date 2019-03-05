@@ -691,7 +691,7 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
 
         public CodonTracker( final String orfCoords, final byte[] refSeq ) {
             this.refSeq = refSeq;
-            exonList = getExons(orfCoords);
+            exonList = getExons(orfCoords, refSeq.length);
 
             codonCounts = new long[exonList.stream().mapToInt(Interval::size).sum() / 3][];
             for ( int codonId = 0; codonId != codonCounts.length; ++codonId ) {
@@ -718,14 +718,22 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
 
             int frameShiftCodonId = findFrameShift(snvs);
 
+            final int lastExonEnd = exonList.get(exonList.size() - 1).getEnd();
             while ( snv != null ) {
                 int refIndex = snv.getRefIndex();
+                if ( refIndex >= lastExonEnd ) {
+                    break;
+                }
+                Interval curExon = null;
                 final Iterator<Interval> exonIterator = exonList.iterator();
-                Interval curExon;
-                do {
-                    curExon = exonIterator.next();
-                } while ( curExon.getEnd() < refIndex );
-                if ( curExon.getStart() > refIndex ) {
+                while ( exonIterator.hasNext() ) {
+                    final Interval testExon = exonIterator.next();
+                    if ( testExon.getStart() <= refIndex && testExon.getEnd() > refIndex ) {
+                        curExon = testExon;
+                        break;
+                    }
+                }
+                if ( curExon == null ) {
                     throw new GATKException("can't find current exon, even though refIndex should be exonic.");
                 }
 
@@ -774,7 +782,7 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
                         snv = null;
                         while ( snvIterator.hasNext() ) {
                             final SNV testSNV = snvIterator.next();
-                            if ( isExonic(testSNV.getRefIndex()) ) {
+                            if ( testSNV.getRefIndex() >= lastExonEnd || isExonic(testSNV.getRefIndex()) ) {
                                 snv = testSNV;
                                 break;
                             }
@@ -782,8 +790,8 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
                     }
                     if ( bumpRefIndex ) {
                         if ( ++refIndex == curExon.getEnd() ) {
-                            curExon = exonIterator.next();
-                            if ( curExon.getStart() != Integer.MAX_VALUE ) {
+                            if ( exonIterator.hasNext() ) {
+                                curExon = exonIterator.next();
                                 refIndex = curExon.getStart();
                             }
                         }
@@ -867,7 +875,7 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
             }
         }
 
-        private static List<Interval> getExons( final String orfCoords ) {
+        private static List<Interval> getExons( final String orfCoords, final int refLen ) {
             final List<Interval> exonList = new ArrayList<>();
             for ( final String coordPair : orfCoords.split(",") ) {
                 final String[] coords = coordPair.split("-");
@@ -883,6 +891,9 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
                     if ( end < start ) {
                         throw new UserException("Found ORF end coordinate less than start: " + orfCoords);
                     }
+                    if ( end > refLen ) {
+                        throw new UserException("Found ORF end coordinate larger than reference length: " + orfCoords);
+                    }
                     // convert 1-based, inclusive intervals to 0-based, half-open
                     final Interval exon = new Interval(start - 1, end);
                     exonList.add(exon);
@@ -895,9 +906,6 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
                     }
                 }
             }
-
-            // it's helpful to have this 0-length sentinel at the end of the list
-            exonList.add(new Interval(Integer.MAX_VALUE, Integer.MAX_VALUE));
 
             final int orfLen = exonList.stream().mapToInt(Interval::size).sum();
             if ( (orfLen % 3) != 0 ) {
@@ -983,7 +991,7 @@ public class AnalyzeSaturationMutagenesis extends GATKTool {
                 if ( exon.getStart() > refIndex ) return false;
                 if ( exon.getEnd() > refIndex ) return true;
             }
-            throw new GATKException("can't reach here");
+            return false;
         }
 
         private int exonicBaseCount( final int refIndex ) {

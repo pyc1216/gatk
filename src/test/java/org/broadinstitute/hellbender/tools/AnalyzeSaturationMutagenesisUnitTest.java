@@ -172,6 +172,13 @@ public class AnalyzeSaturationMutagenesisUnitTest extends GATKBaseTest {
     @Test
     public void testEncodingDeletions() {
         Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(new SNV(2, CALL_A, NO_CALL, QUAL_30))),
+                Arrays.asList(
+                        new CodonVariation(0, -1, CodonVariationType.FRAMESHIFT),
+                        new CodonVariation(0, 57, CodonVariationType.MODIFICATION),
+                        new CodonVariation(1, 55, CodonVariationType.MODIFICATION),
+                        new CodonVariation(2, 11, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
                 codonTracker.encodeSNVsAsCodons(Arrays.asList(
                         new SNV(10, CALL_A, NO_CALL, QUAL_30),
                         new SNV(12, CALL_T, NO_CALL, QUAL_30))),
@@ -184,5 +191,50 @@ public class AnalyzeSaturationMutagenesisUnitTest extends GATKBaseTest {
                         new SNV(7, CALL_T, NO_CALL, QUAL_30),
                         new SNV(8, CALL_C, NO_CALL, QUAL_30))),
                 Collections.singletonList(new CodonVariation(1, -1, CodonVariationType.DELETION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(3, CALL_T, NO_CALL, QUAL_30),
+                        new SNV(5, CALL_C, NO_CALL, QUAL_30),
+                        new SNV(8, CALL_C, NO_CALL, QUAL_30))),
+                Arrays.asList(
+                        new CodonVariation(0, 11, CodonVariationType.MODIFICATION),
+                        new CodonVariation(1, -1, CodonVariationType.DELETION)));
+
+    }
+
+    @Test
+    public void testEncodingInsertions() {
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Collections.singletonList(
+                        new SNV(5, NO_CALL, CALL_T, QUAL_30))),
+                Arrays.asList(
+                        new CodonVariation(1, -1, CodonVariationType.FRAMESHIFT),
+                        new CodonVariation(1, 55, CodonVariationType.MODIFICATION),
+                        new CodonVariation(2, 28, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(2, NO_CALL, CALL_T, QUAL_30),
+                        new SNV(2, NO_CALL, CALL_T, QUAL_30),
+                        new SNV(2, NO_CALL, CALL_T, QUAL_30))),
+                Collections.singletonList(
+                        new CodonVariation(0, 63, CodonVariationType.INSERTION)));
+    }
+
+    @Test
+    public void testFrameRecoveringIndels() {
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(3, CALL_T, NO_CALL, QUAL_30),
+                        new SNV(7, NO_CALL, CALL_A, QUAL_30))),
+                Arrays.asList(
+                        new CodonVariation(0, 9, CodonVariationType.MODIFICATION),
+                        new CodonVariation(1, 13, CodonVariationType.MODIFICATION)));
+        Assert.assertEquals(
+                codonTracker.encodeSNVsAsCodons(Arrays.asList(
+                        new SNV(3, NO_CALL, CALL_T, QUAL_30),
+                        new SNV(7, CALL_T, NO_CALL, QUAL_30))),
+                Arrays.asList(
+                        new CodonVariation(0, 15, CodonVariationType.MODIFICATION),
+                        new CodonVariation(1, 37, CodonVariationType.MODIFICATION)));
     }
 }
